@@ -2,7 +2,7 @@
   "name": "gemini-plugin-cc",
   "owner": {
     "name": "David Belomotov",
-    "url": "https://github.com/davbelom"
+    "url": "https://github.com/behagoras"
   },
   "metadata": {
     "description": "Marketplace hosting the Gemini CLI delegation plugin for Claude Code.",

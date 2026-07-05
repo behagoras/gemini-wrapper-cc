@@ -44,7 +44,7 @@ This repo doubles as its own Claude Code marketplace (`.claude-plugin/marketplac
 
 **From GitHub:**
 ```
-/plugin marketplace add davbelom/gemini-plugin-cc
+/plugin marketplace add behagoras/gemini-plugin-cc
 /plugin install gemini@gemini-plugin-cc
 ```
 

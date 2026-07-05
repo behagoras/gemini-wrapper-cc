@@ -5,10 +5,10 @@
   "description": "Delegate code review, adversarial second opinions, web-grounded research, and full tasks to Google's Gemini CLI (Gemini 3 Pro) from inside Claude Code.",
   "author": {
     "name": "David Belomotov",
-    "url": "https://github.com/davbelom"
+    "url": "https://github.com/behagoras"
   },
-  "homepage": "https://github.com/davbelom/gemini-plugin-cc",
-  "repository": "https://github.com/davbelom/gemini-plugin-cc",
+  "homepage": "https://github.com/behagoras/gemini-plugin-cc",
+  "repository": "https://github.com/behagoras/gemini-plugin-cc",
   "license": "MIT",
   "keywords": ["gemini", "google", "code-review", "delegation", "web-search", "second-opinion"]
 }
