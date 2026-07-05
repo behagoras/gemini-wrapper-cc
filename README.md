@@ -91,7 +91,57 @@ Every command routes through `scripts/gemini-run.mjs`, which:
 - builds the invocation (model, `--yolo`, `--include-directories`, prompt via stdin),
 - prefers `-o json` and extracts `.response`, falling back to `-o text`,
 - caps printed output so long responses don't flood Claude's context,
-- detects auth/quota failures and prints actionable guidance.
+- detects auth/quota failures and prints actionable guidance,
+- **streams every run live to a per-run log dir** so you can watch Gemini work.
+
+## Observability: watch Gemini work
+
+Gemini used to be a black box — nothing visible until the final response. Now every `run` creates a directory under `~/.gemini-runs/` (override with `GEMINI_RUNS_DIR`):
+
+```
+~/.gemini-runs/20260705-143012-count-slowly-from-1-to-5/
+├── run.log        # combined stdout+stderr, streamed live as chunks arrive (uncapped)
+├── meta.json      # args, model, start/end time, duration, exit code, status
+├── response.txt   # final extracted response (uncapped)
+└── stream.jsonl   # raw stream-json events (only with --stream)
+```
+
+The `run.log` path is printed **immediately at launch**, so you can follow along:
+
+```bash
+tail -f ~/.gemini-runs/<run-dir>/run.log
+```
+
+**`--stream`** switches Gemini to its `-o stream-json` output, so the log shows tool calls and assistant output the moment they happen (`[tool_use] google_web_search {...}`, then the response text as it streams). This is the recommended way to run anything you want to watch. **`--debug`** additionally passes the CLI's `-d` flag. **`--timeout <secs>`** overrides the 30-minute cap.
+
+> Honest caveat: in plain `-o text`/`-o json` modes the Gemini CLI buffers most of its stdout until the end when not attached to a TTY, so `run.log` mainly grows at completion; stderr (and `--debug` output) still flows live. For true live output, use `--stream`.
+
+List recent runs without opening files:
+
+```bash
+node scripts/gemini-run.mjs logs --last 10
+# status, duration, model, exit code, and log path per run
+```
+
+### Direct vs executor: pick the cheap path
+
+Two ways to run a delegation:
+
+- **Direct (default):** Claude launches `gemini-run.mjs` in a background Bash and hands you the `tail -f` line. Costs zero extra Anthropic tokens.
+- **`gemini-executor` subagent:** a Sonnet wrapper that launches Gemini and summarizes its output. Launching it costs ~15–30k input tokens, so it's reserved for runs whose output is huge and must be summarized away from the main context.
+
+The bundled skill and commands teach Claude to default to the direct path.
+
+## Updating an installed plugin
+
+Merging a PR does **not** update machines that already have the plugin installed — Claude Code runs the copy in its plugin cache. After a release:
+
+```
+/plugin marketplace update gemini-plugin-cc
+/plugin update gemini@gemini-plugin-cc
+```
+
+(or uninstall/reinstall), then restart Claude Code if prompted. Verify with `/gemini:setup` or by checking that `gemini-run.mjs logs` exists in the installed copy.
 
 ## Credits & license
 
