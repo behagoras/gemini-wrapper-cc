@@ -28,7 +28,7 @@ Model names change often; confirm what's live with `gemini --list-models` (or th
 
 ## Prefer the plugin helper
 
-Inside this plugin, do not hand-roll raw `gemini` command strings. Use the helper, which checks availability, prefers `-o json` with a `-o text` fallback, caps output size, and turns auth/quota failures into actionable guidance:
+Inside this plugin, do not hand-roll raw `gemini` command strings. Use the helper, which checks availability, prefers `-o json` with a `-o text` fallback, caps output size, and turns auth/quota failures into actionable guidance. If `${CLAUDE_PLUGIN_ROOT}` is not set in the session (it only exists inside plugin command context), resolve the script's absolute path instead — the installed plugin cache (`~/.claude/plugins/cache/gemini-plugin-cc/gemini/<version>/scripts/gemini-run.mjs`) or the local checkout:
 
 ```bash
 # availability + auth probe
@@ -52,7 +52,7 @@ Every `run` writes a per-run directory under `$GEMINI_RUNS_DIR` (default `~/.gem
 - `response.txt` — the final extracted response (uncapped)
 - `stream.jsonl` — raw `stream-json` events (only with `--stream`)
 
-The helper prints the `run.log` path on stdout **immediately at launch**, before Gemini finishes. Always relay that path to the user so they can `tail -f` it. Add `--stream` for real runs the user wants to watch: it switches Gemini to `-o stream-json`, so tool calls (`[tool_use] google_web_search {...}`) and assistant output land in the log the moment they happen. `--debug` additionally passes the CLI's `-d` flag for its internal debug output. `--timeout <secs>` overrides the 30-minute cap.
+The helper prints the `run.log` path on stdout **immediately at launch**, before Gemini finishes. Always relay that path to the user so they can `tail -f` it. Add `--stream` for real runs the user wants to watch: it switches Gemini to `-o stream-json` (available in CLI v0.46+; confirmed live on 0.46.0 and 0.49.0), so tool calls (`[tool_use] google_web_search {...}`) and assistant output land in the log the moment they happen. `--debug` additionally passes the CLI's `-d` flag for its internal debug output. `--timeout <secs>` overrides the 30-minute cap.
 
 ## Direct path vs the gemini-executor agent
 
@@ -63,7 +63,7 @@ The helper prints the `run.log` path on stdout **immediately at launch**, before
    node "${CLAUDE_PLUGIN_ROOT}/scripts/gemini-run.mjs" run --stream --include <dir> --stdin
    ```
 2. Immediately tell the user the log path the helper printed, formatted as a `tail -f` command they can paste.
-3. **Narrate progress like a native subagent:** in `--stream` mode the helper mirrors tool calls and assistant text to its stderr, so the background shell's output pane shows the run live and every `BashOutput` poll returns the new events. Poll every ~10–15s and relay briefly what Gemini is doing ("corriendo google_web_search…", "escribiendo la respuesta…"). Pass `--quiet` to disable the mirror if the caller only wants the log file.
+3. **Narrate progress like a native subagent:** in `--stream` mode the helper mirrors tool calls and assistant text to its stderr, so the background shell's output pane shows the run live and every `BashOutput` poll returns the new events. Poll every ~10–15s and relay briefly what Gemini is doing ("corriendo google_web_search…", "escribiendo la respuesta…"). If `BashOutput` isn't available in the session, poll with `Read` on the background task's output file (same information) — this fallback is proven to work. Pass `--quiet` to disable the mirror if the caller only wants the log file.
 4. When the background task completes, read the printed response (already capped by `--max-chars`), or `response.txt` for the full text.
 
 **Use the `gemini-executor` subagent only when it earns its ~15–30k-token launch cost**: when Gemini's output is expected to be huge and must be *summarized away* from the main context (e.g. a full-repo analysis dump), or when several Gemini runs need orchestrating with their own scratch context. For a single bounded run, the direct path is strictly better: cheaper, and the user can watch it live.
