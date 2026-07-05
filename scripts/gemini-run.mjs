@@ -16,8 +16,12 @@
 // Usage:
 //   node gemini-run.mjs check
 //   node gemini-run.mjs run [--model <m>] [--yolo] [--trust] [--text|--json]
-//        [--stream] [--debug] [--include <dir> ...] [--max-chars <n>]
+//        [--stream] [--quiet] [--debug] [--include <dir> ...] [--max-chars <n>]
 //        [--timeout <secs>] [--stdin] -- <prompt words...>
+//
+// In --stream mode, rendered progress (tool calls + assistant text) is ALSO
+// mirrored to stderr (disable with --quiet), so Claude Code's background-shell
+// pane and BashOutput polls show the run live — stdout stays clean (response only).
 //   node gemini-run.mjs logs [--last <n>]
 //
 // The prompt may be passed after `--` OR piped on stdin with `--stdin`.
@@ -53,6 +57,7 @@ function parse(args) {
     maxChars: 24000,
     stdin: false,
     stream: false,
+    quiet: false,
     debug: false,
     timeoutSecs: TIMEOUT_DEFAULT_SECS,
     prompt: "",
@@ -68,6 +73,7 @@ function parse(args) {
     else if (a === "--json") opts.format = "json";
     else if (a === "--text") opts.format = "text";
     else if (a === "--stream" || a === "--verbose") opts.stream = true;
+    else if (a === "--quiet") opts.quiet = true;
     else if (a === "--debug") opts.debug = true;
     else if (a === "--include") opts.include.push(flagArgs[++i]);
     else if (a === "--max-chars") opts.maxChars = parseInt(flagArgs[++i], 10) || opts.maxChars;
@@ -408,6 +414,23 @@ async function runStreamMode() {
   let resultEvent = null;
   let lineBuf = "";
 
+  // Write rendered progress to the log file AND (unless --quiet) to OUR stderr.
+  // The stderr mirror is what makes the run visible inside Claude Code itself:
+  // the background-shell output pane and every BashOutput poll show tool calls
+  // and assistant text live, like a native subagent — no external tail needed.
+  const live = (text) => {
+    if (logStream) {
+      try {
+        logStream.write(text);
+      } catch {}
+    }
+    if (!opts.quiet) {
+      try {
+        process.stderr.write(text);
+      } catch {}
+    }
+  };
+
   const handleEvent = (ev) => {
     if (eventStream) {
       try {
@@ -416,31 +439,31 @@ async function runStreamMode() {
     }
     switch (ev.type) {
       case "init":
-        log(`[init] session started${ev.model ? ` (model: ${ev.model})` : ""}`);
+        live(`[init] session started${ev.model ? ` (model: ${ev.model})` : ""}\n`);
         break;
       case "message":
         if (ev.role === "assistant") {
           assistantText += ev.content || "";
-          if (logStream && ev.content) logStream.write(ev.content); // live model output
+          if (ev.content) live(ev.content); // live model output
         } else {
-          log(`[user] ${String(ev.content || "").slice(0, 300)}`);
+          live(`[user] ${String(ev.content || "").slice(0, 300)}\n`);
         }
         break;
       case "tool_use":
-        log(`\n[tool_use] ${ev.tool_name} ${JSON.stringify(ev.parameters || {}).slice(0, 500)}`);
+        live(`\n[tool_use] ${ev.tool_name} ${JSON.stringify(ev.parameters || {}).slice(0, 500)}\n`);
         break;
       case "tool_result":
-        log(`[tool_result] ${ev.tool_name || ""} ${String(ev.status || "")} ${String(ev.output ?? ev.result ?? "").slice(0, 500)}`);
+        live(`[tool_result] ${ev.tool_name || ""} ${String(ev.status || "")} ${String(ev.output ?? ev.result ?? "").slice(0, 500)}\n`);
         break;
       case "error":
-        log(`\n[error] ${JSON.stringify(ev).slice(0, 1000)}`);
+        live(`\n[error] ${JSON.stringify(ev).slice(0, 1000)}\n`);
         break;
       case "result":
         resultEvent = ev;
-        log(`\n[result] status=${ev.status}${ev.error ? ` error=${ev.error.message}` : ""}`);
+        live(`\n[result] status=${ev.status}${ev.error ? ` error=${ev.error.message}` : ""}\n`);
         break;
       default:
-        log(`[event] ${JSON.stringify(ev).slice(0, 500)}`);
+        live(`[event] ${JSON.stringify(ev).slice(0, 500)}\n`);
     }
   };
 
@@ -454,7 +477,7 @@ async function runStreamMode() {
       try {
         handleEvent(JSON.parse(line));
       } catch {
-        log(line); // not JSON — log verbatim
+        live(line + "\n"); // not JSON — pass through verbatim
       }
     }
   };

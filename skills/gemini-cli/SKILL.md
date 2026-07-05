@@ -63,7 +63,8 @@ The helper prints the `run.log` path on stdout **immediately at launch**, before
    node "${CLAUDE_PLUGIN_ROOT}/scripts/gemini-run.mjs" run --stream --include <dir> --stdin
    ```
 2. Immediately tell the user the log path the helper printed, formatted as a `tail -f` command they can paste.
-3. When the background task completes, read the printed response (already capped by `--max-chars`), or `response.txt` for the full text.
+3. **Narrate progress like a native subagent:** in `--stream` mode the helper mirrors tool calls and assistant text to its stderr, so the background shell's output pane shows the run live and every `BashOutput` poll returns the new events. Poll every ~10–15s and relay briefly what Gemini is doing ("corriendo google_web_search…", "escribiendo la respuesta…"). Pass `--quiet` to disable the mirror if the caller only wants the log file.
+4. When the background task completes, read the printed response (already capped by `--max-chars`), or `response.txt` for the full text.
 
 **Use the `gemini-executor` subagent only when it earns its ~15–30k-token launch cost**: when Gemini's output is expected to be huge and must be *summarized away* from the main context (e.g. a full-repo analysis dump), or when several Gemini runs need orchestrating with their own scratch context. For a single bounded run, the direct path is strictly better: cheaper, and the user can watch it live.
 
