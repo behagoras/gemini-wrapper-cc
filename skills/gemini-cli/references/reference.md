@@ -30,7 +30,7 @@ gemini  # First run prompts for auth
 |------|-------|-------------|
 | `--yolo` | `-y` | Auto-approve all tool calls |
 | `--output-format` | `-o` | Output format: `text`, `json`, `stream-json` |
-| `--model` | `-m` | Model selection (e.g., `gemini-2.5-flash`) |
+| `--model` | `-m` | Model selection (e.g., `gemini-3.5-flash`) |
 
 ### Session Management
 
@@ -86,7 +86,7 @@ Returns structured data:
   "response": "The actual response content",
   "stats": {
     "models": {
-      "gemini-2.5-flash": {
+      "gemini-3.5-flash": {
         "api": {
           "totalRequests": 3,
           "totalErrors": 0,
@@ -125,11 +125,14 @@ Real-time newline-delimited JSON events for monitoring long tasks.
 
 ### Available Models
 
+Model names change frequently — run `gemini --list-models` to see what's live. Current (verified July 2026):
+
 | Model | Use Case | Context |
 |-------|----------|---------|
-| `gemini-3-pro` | Complex tasks (default) | 1M tokens |
-| `gemini-2.5-flash` | Quick tasks, lower latency | Large |
-| `gemini-2.5-flash-lite` | Fastest, simplest tasks | Medium |
+| `gemini-3.1-pro-preview` | Complex tasks (default) | 1M tokens |
+| `gemini-3.5-flash` | Quick tasks, lower latency | Large |
+| `gemini-3.1-flash-lite` | Fastest, simplest tasks | Medium |
+| `gemini-3-flash-preview`, `gemini-2.5-pro`, `gemma-4-31b-it`, `gemma-4-26b-a4b-it` | Also available | — |
 
 ### Usage
 ```bash
@@ -137,7 +140,7 @@ Real-time newline-delimited JSON events for monitoring long tasks.
 gemini "complex analysis" -o text
 
 # Flash for speed
-gemini "simple task" -m gemini-2.5-flash -o text
+gemini "simple task" -m gemini-3.5-flash -o text
 ```
 
 ## Configuration Files
@@ -226,7 +229,7 @@ echo "continue" | gemini -r latest -o text
 - Typical wait: 1-5 seconds
 
 ### Mitigation
-1. Use `gemini-2.5-flash` for simple tasks
+1. Use `gemini-3.5-flash` for simple tasks
 2. Batch operations into single prompts
 3. Run long tasks in background
 

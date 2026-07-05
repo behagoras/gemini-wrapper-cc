@@ -11,7 +11,18 @@ allowed-tools:
 
 # Gemini CLI Integration
 
-This skill teaches Claude how to drive Google's Gemini CLI (`@google/gemini-cli`, v0.16+; default model Gemini 3 Pro) as an auxiliary tool. It backs the `/gemini:*` commands and the `gemini-executor` agent in this plugin.
+This skill teaches Claude how to drive Google's Gemini CLI (`@google/gemini-cli`, v0.16+; default model Gemini 3.1 Pro) as an auxiliary tool. It backs the `/gemini:*` commands and the `gemini-executor` agent in this plugin.
+
+## Current models (verified July 2026)
+
+Model names change often; confirm what's live with `gemini --list-models` (or the model picker) before hardcoding one. As of this writing:
+
+| Role in this plugin | Model | Notes |
+|---|---|---|
+| **Heavy / default** | `gemini-3.1-pro-preview` | Complex reasoning, reviews, multi-file work. Leave `-m` unset to use the CLI default (currently this). |
+| **Fast / cheap** (`--flash`) | `gemini-3.5-flash` | Good default for quick or lower-priority tasks. |
+| **Lite / trivial** | `gemini-3.1-flash-lite` | Cheapest; one-liners, formatting, cheap auth probes. |
+| Also available | `gemini-3-flash-preview`, `gemini-2.5-pro`, `gemma-4-31b-it`, `gemma-4-26b-a4b-it` | Use explicitly if a task calls for them. |
 
 > **Credit:** the reference material in this skill (`references/reference.md`, `references/templates.md`, `references/patterns.md`, `references/tools.md`) is adapted from the excellent [`forayconsulting/gemini_cli_skill`](https://github.com/forayconsulting/gemini_cli_skill) (MIT). This plugin repackages it as an installable plugin and wraps the raw CLI in a helper script for reliability.
 
@@ -45,7 +56,7 @@ Skip Gemini for: trivial tasks (overhead not worth it), work needing tight inter
 gemini -p "<prompt>" -o text            # human-readable
 gemini -p "<prompt>" -o json            # structured; parse .response and .stats
 gemini -p "<prompt>" --yolo -o text     # auto-approve tool calls (needed to actually write files)
-gemini -p "<prompt>" -m gemini-2.5-flash -o text   # faster/cheaper model
+gemini -p "<prompt>" -m gemini-3.5-flash -o text   # faster/cheaper model
 gemini -p "<prompt>" --include-directories <dir> -o text  # add context
 ```
 
@@ -57,10 +68,10 @@ Key flags: `--yolo`/`-y` (auto-approve), `-o text|json`, `-m <model>`, `--includ
 
 ```
 Is the task complex (architecture, multi-file, deep reasoning, security review)?
-├── Yes → default model (Gemini 3 Pro) — leave -m unset
+├── Yes → default model (Gemini 3.1 Pro) — leave -m unset
 └── No  → speed/cost matters?
-         ├── Yes → -m gemini-2.5-flash
-         └── Trivial (formatting, one-liners) → -m gemini-2.5-flash-lite
+         ├── Yes → -m gemini-3.5-flash
+         └── Trivial (formatting, one-liners) → -m gemini-3.1-flash-lite
 ```
 
 ## Rate limits

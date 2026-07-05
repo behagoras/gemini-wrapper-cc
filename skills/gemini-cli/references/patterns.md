@@ -51,7 +51,7 @@ gemini "[prompt]" -o json 2>&1
 // In Node.js or with jq
 const result = JSON.parse(output);
 const content = result.response;
-const tokenUsage = result.stats.models["gemini-2.5-flash"].tokens.total;
+const tokenUsage = result.stats.models["gemini-3.5-flash"].tokens.total;
 const toolCalls = result.stats.tools.byName;
 ```
 
@@ -96,12 +96,12 @@ Choose the right model for the task.
 
 ```
 Is the task complex (architecture, multi-file, deep analysis)?
-├── Yes → Use default (Gemini 3 Pro)
+├── Yes → Use default (Gemini 3.1 Pro)
 └── No → Is speed critical?
-    ├── Yes → Use gemini-2.5-flash
+    ├── Yes → Use gemini-3.5-flash
     └── No → Is it trivial (formatting, simple query)?
-        ├── Yes → Use gemini-2.5-flash-lite
-        └── No → Use gemini-2.5-flash
+        ├── Yes → Use gemini-3.1-flash-lite
+        └── No → Use gemini-3.5-flash
 ```
 
 ### Examples
@@ -110,10 +110,10 @@ Is the task complex (architecture, multi-file, deep analysis)?
 gemini "Analyze codebase architecture" -o text
 
 # Quick: Simple formatting
-gemini "Format this JSON" -m gemini-2.5-flash -o text
+gemini "Format this JSON" -m gemini-3.5-flash -o text
 
 # Trivial: One-liner
-gemini "What is 2+2?" -m gemini-2.5-flash -o text
+gemini "What is 2+2?" -m gemini-3.5-flash -o text
 ```
 
 ## Pattern 5: Rate Limit Handling
@@ -129,7 +129,7 @@ Default behavior - CLI retries automatically with backoff.
 gemini "[important task]" --yolo -o text
 
 # Lower priority: Use Flash (different quota)
-gemini "[less critical task]" -m gemini-2.5-flash -o text
+gemini "[less critical task]" -m gemini-3.5-flash -o text
 ```
 
 ### Approach 3: Batch Operations

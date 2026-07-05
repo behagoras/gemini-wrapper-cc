@@ -1,6 +1,6 @@
 # gemini-plugin-cc
 
-A Claude Code plugin that delegates work to **Google's Gemini CLI** (Gemini 3 Pro). It's the Gemini analog of OpenAI's [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc): from inside any Claude Code workflow you can hand off code reviews, adversarial second opinions, web-grounded research, and full task delegation to Gemini.
+A Claude Code plugin that delegates work to **Google's Gemini CLI** (Gemini 3.1 Pro). It's the Gemini analog of OpenAI's [`codex-plugin-cc`](https://github.com/openai/codex-plugin-cc): from inside any Claude Code workflow you can hand off code reviews, adversarial second opinions, web-grounded research, and full task delegation to Gemini.
 
 ## Why
 
@@ -69,7 +69,7 @@ Then restart Claude Code if prompted, and run `/gemini:setup`.
 
 Notes:
 - `/gemini:delegate` gives Gemini write access (`--yolo`) by default; Claude reviews the resulting `git diff` before you keep it. Use `--read-only` for analysis-only runs.
-- Append `--flash` where offered to use the faster/cheaper `gemini-2.5-flash` model instead of the default Gemini 3 Pro.
+- Append `--flash` where offered to use the faster/cheaper `gemini-3.5-flash` model instead of the default Gemini 3.1 Pro.
 
 ## How it works
 
