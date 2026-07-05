@@ -21,4 +21,6 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/gemini-run.mjs" run --text -- "Use google_we
 ```
 Replace `<QUESTION HERE>` with the user's question (minus routing flags). Keep the instruction to use `google_web_search` and to cite URLs — that is the whole point of routing this to Gemini.
 
+The helper prints a live log path (`[gemini-run] live log: ...`) at launch. For slow searches, add `--stream` and run in the background so the user can `tail -f` the log and watch the `google_web_search` tool calls happen.
+
 Step 3 — Relay Gemini's answer, preserving the cited source URLs so the user can verify. If Gemini returns no sources, note that the answer is ungrounded.

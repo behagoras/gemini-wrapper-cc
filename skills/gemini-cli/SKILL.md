@@ -35,10 +35,37 @@ Inside this plugin, do not hand-roll raw `gemini` command strings. Use the helpe
 node "${CLAUDE_PLUGIN_ROOT}/scripts/gemini-run.mjs" check
 
 # a run (prompt after --, or piped with --stdin)
-node "${CLAUDE_PLUGIN_ROOT}/scripts/gemini-run.mjs" run [--model <m>] [--yolo] [--include <dir>] --stdin
+node "${CLAUDE_PLUGIN_ROOT}/scripts/gemini-run.mjs" run [--model <m>] [--yolo] [--include <dir>] [--stream] --stdin
+
+# list recent runs (status, duration, log path)
+node "${CLAUDE_PLUGIN_ROOT}/scripts/gemini-run.mjs" logs [--last <n>]
 ```
 
 Raw `gemini` invocations (below) are documented so you understand what the helper does and can fall back if needed.
+
+## Observability: every run has a live log
+
+Every `run` writes a per-run directory under `$GEMINI_RUNS_DIR` (default `~/.gemini-runs/`):
+
+- `run.log` — combined stdout+stderr, streamed **live** as chunks arrive (uncapped)
+- `meta.json` — args, model, start/end time, duration, exit code, status
+- `response.txt` — the final extracted response (uncapped)
+- `stream.jsonl` — raw `stream-json` events (only with `--stream`)
+
+The helper prints the `run.log` path on stdout **immediately at launch**, before Gemini finishes. Always relay that path to the user so they can `tail -f` it. Add `--stream` for real runs the user wants to watch: it switches Gemini to `-o stream-json`, so tool calls (`[tool_use] google_web_search {...}`) and assistant output land in the log the moment they happen. `--debug` additionally passes the CLI's `-d` flag for its internal debug output. `--timeout <secs>` overrides the 30-minute cap.
+
+## Direct path vs the gemini-executor agent
+
+**Default to the DIRECT path** for simple or observable runs — it costs zero Anthropic subagent tokens:
+
+1. Launch via Bash with `run_in_background: true`:
+   ```bash
+   node "${CLAUDE_PLUGIN_ROOT}/scripts/gemini-run.mjs" run --stream --include <dir> --stdin
+   ```
+2. Immediately tell the user the log path the helper printed, formatted as a `tail -f` command they can paste.
+3. When the background task completes, read the printed response (already capped by `--max-chars`), or `response.txt` for the full text.
+
+**Use the `gemini-executor` subagent only when it earns its ~15–30k-token launch cost**: when Gemini's output is expected to be huge and must be *summarized away* from the main context (e.g. a full-repo analysis dump), or when several Gemini runs need orchestrating with their own scratch context. For a single bounded run, the direct path is strictly better: cheaper, and the user can watch it live.
 
 ## When to use Gemini
 
@@ -84,7 +111,7 @@ If `gemini` is not on PATH or auth fails, the helper prints exact install/auth s
 
 ## Output handling
 
-Prefer JSON and extract `.response`; fall back to text if parsing fails (the helper does this automatically). Never paste multi-thousand-line Gemini output into the main context — summarize it (the `gemini-executor` agent exists for exactly this).
+Prefer JSON and extract `.response`; fall back to text if parsing fails (the helper does this automatically). Never paste multi-thousand-line Gemini output into the main context — the helper caps what it prints (`--max-chars`) and keeps the full text in `response.txt`; reserve the `gemini-executor` agent for output that must be summarized away entirely.
 
 ## Reference files
 

@@ -37,4 +37,6 @@ $DIFF" | node "${CLAUDE_PLUGIN_ROOT}/scripts/gemini-run.mjs" run --stdin --text
 ```
 Adjust the `git diff` command in the snippet to match the scope chosen in Step 2 (`--cached` only for `--staged`, `<ref>...HEAD` for `--base`).
 
+The helper prints a live log path (`[gemini-run] live log: ...`) at launch. For a large diff, run in the background (`run_in_background: true`) and relay that path so the user can `tail -f` the review as Gemini writes it.
+
 Step 4 — Relay Gemini's output to the user as a structured review. Keep it concise; if the output is very long the wrapper will truncate it and tell you. Do not act on the findings yourself unless the user asks.

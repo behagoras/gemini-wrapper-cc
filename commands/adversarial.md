@@ -32,4 +32,6 @@ $DIFF" | node "${CLAUDE_PLUGIN_ROOT}/scripts/gemini-run.mjs" run --stdin --text
 ```
 Match the `git diff` command to the chosen scope.
 
+The helper prints a live log path (`[gemini-run] live log: ...`) at launch. For a large diff, run in the background (`run_in_background: true`) and relay that path so the user can `tail -f` the review as Gemini writes it.
+
 Step 4 — Relay Gemini's findings. Do not soften them and do not fix them unless asked. If the user wants to act on a finding, offer to do so as a separate follow-up.
