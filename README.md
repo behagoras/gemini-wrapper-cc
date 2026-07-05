@@ -123,6 +123,14 @@ node scripts/gemini-run.mjs logs --last 10
 # status, duration, model, exit code, and log path per run
 ```
 
+### Statusline: zero-token live indicator
+
+`scripts/gemini-statusline.mjs` shows the active Gemini run in Claude Code's statusline — elapsed time plus the last tool call (`✦ gemini ▶ 34s · [tool_use] google_web_search {...}`), then `✔/✖` for a minute after it finishes. It reads `meta.json` + the log tail; no model involved, zero tokens. Statusline is a user-level setting, so add to `~/.claude/settings.json` (absolute path — `${CLAUDE_PLUGIN_ROOT}` doesn't resolve there):
+
+```json
+"statusLine": { "type": "command", "command": "node /path/to/gemini-plugin-cc/scripts/gemini-statusline.mjs" }
+```
+
 ### Direct vs executor: pick the cheap path
 
 Two ways to run a delegation:
