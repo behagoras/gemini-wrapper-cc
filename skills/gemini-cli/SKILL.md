@@ -107,7 +107,7 @@ Free tier ≈ 60 req/min, 1000 req/day. The CLI auto-retries with backoff ("quot
 
 ## Graceful degradation
 
-If `gemini` is not on PATH or auth fails, the helper prints exact install/auth steps and exits non-zero (3 = not installed, 4 = not authenticated). Never let a raw failure leak — route through the helper, or run `/gemini:setup`. Auth (`gemini` run once interactively, or `GEMINI_API_KEY`) is a one-time manual step the user must do themselves.
+If `gemini` is not on PATH or auth fails, the helper prints exact install/auth steps and exits non-zero (3 = not installed, 4 = not authenticated, 5 = untrusted folder). **Folder trust:** in a directory Gemini hasn't seen before (fresh clones, new worktrees), the CLI's folder-trust check blocks non-interactive runs — add `--trust` to the helper invocation (passes `--skip-trust`), or set `GEMINI_CLI_TRUST_WORKSPACE=true` in the environment. Never let a raw failure leak — route through the helper, or run `/gemini:setup`. Auth (`gemini` run once interactively, or `GEMINI_API_KEY`) is a one-time manual step the user must do themselves.
 
 ## Output handling
 

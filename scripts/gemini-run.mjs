@@ -15,9 +15,9 @@
 //
 // Usage:
 //   node gemini-run.mjs check
-//   node gemini-run.mjs run [--model <m>] [--yolo] [--text|--json] [--stream]
-//        [--debug] [--include <dir> ...] [--max-chars <n>] [--timeout <secs>]
-//        [--stdin] -- <prompt words...>
+//   node gemini-run.mjs run [--model <m>] [--yolo] [--trust] [--text|--json]
+//        [--stream] [--debug] [--include <dir> ...] [--max-chars <n>]
+//        [--timeout <secs>] [--stdin] -- <prompt words...>
 //   node gemini-run.mjs logs [--last <n>]
 //
 // The prompt may be passed after `--` OR piped on stdin with `--stdin`.
@@ -47,6 +47,7 @@ function parse(args) {
   const opts = {
     model: null,
     yolo: false,
+    trust: false,
     format: "auto", // auto | json | text
     include: [],
     maxChars: 24000,
@@ -63,6 +64,7 @@ function parse(args) {
     const a = flagArgs[i];
     if (a === "--model" || a === "-m") opts.model = flagArgs[++i];
     else if (a === "--yolo" || a === "-y") opts.yolo = true;
+    else if (a === "--trust") opts.trust = true;
     else if (a === "--json") opts.format = "json";
     else if (a === "--text") opts.format = "text";
     else if (a === "--stream" || a === "--verbose") opts.stream = true;
@@ -105,6 +107,17 @@ function looksLikeAuthError(text) {
 function looksLikeQuota(text) {
   return /(quota|rate limit|429|RESOURCE_EXHAUSTED|will reset after)/i.test(text || "");
 }
+function looksLikeTrustError(text) {
+  return /(folder trust|not trusted|untrusted (folder|workspace|directory)|trust dialog|trusted folders)/i.test(text || "");
+}
+
+const TRUST_MSG = `Gemini CLI does not trust this directory (folder trust check).
+
+Fix one of these ways and re-run:
+  - add --trust to this command (passes the CLI's --skip-trust for this session), or
+  - export GEMINI_CLI_TRUST_WORKSPACE=true, or
+  - trust the folder permanently: open \`gemini\` interactively there and accept, or see
+    the CLI's trusted-folders docs (GEMINI_CLI_TRUSTED_FOLDERS_PATH).`;
 
 // ---------- run directory helpers ----------
 function runsBaseDir() {
@@ -271,6 +284,7 @@ const meta = {
   stream: opts.stream,
   debug: opts.debug,
   yolo: opts.yolo,
+  trust: opts.trust,
   include: opts.include,
   format: opts.format,
   timeoutSecs: opts.timeoutSecs,
@@ -307,6 +321,7 @@ function buildArgs(format) {
   const args = [];
   if (opts.model) args.push("-m", opts.model);
   if (opts.yolo) args.push("--yolo");
+  if (opts.trust) args.push("--skip-trust");
   if (opts.debug) args.push("--debug");
   for (const dir of opts.include) args.push("--include-directories", dir);
   args.push("-o", format);
@@ -379,6 +394,12 @@ function failAuth(responseText) {
   console.log(UNAVAILABLE_MSG);
   finalize("auth-error", 4, responseText);
   process.exit(4);
+}
+
+function failTrust(responseText) {
+  console.log(TRUST_MSG);
+  finalize("trust-error", 5, responseText);
+  process.exit(5);
 }
 
 // ---------- stream mode (-o stream-json): live tool calls + assistant deltas ----------
@@ -456,6 +477,9 @@ async function runStreamMode() {
   if (looksLikeAuthError(combined) || (resultEvent?.error && looksLikeAuthError(resultEvent.error.message))) {
     failAuth(assistantText || null);
   }
+  if (res.status !== 0 && (looksLikeTrustError(combined) || (resultEvent?.error && looksLikeTrustError(resultEvent.error.message)))) {
+    failTrust(assistantText || null);
+  }
   if (looksLikeQuota(combined)) {
     console.log(
       "Gemini hit a rate/quota limit. The CLI auto-retries with backoff; try again shortly, or use `--model gemini-3.5-flash` for a lower-cost path.\n"
@@ -497,6 +521,7 @@ async function runClassicMode() {
     }
     const combined = (res.stdout || "") + (res.stderr || "");
     if (looksLikeAuthError(combined)) failAuth(null);
+    if (res.status !== 0 && looksLikeTrustError(combined)) failTrust(null);
     if (opts.format === "json") {
       // caller demanded json but we could not parse — surface raw
       emit(raw || combined);
@@ -522,6 +547,7 @@ async function runClassicMode() {
   }
   if (res.status !== 0) {
     if (looksLikeAuthError(combined)) failAuth(null);
+    if (looksLikeTrustError(combined)) failTrust(null);
     if (looksLikeQuota(combined)) {
       console.log(
         "Gemini hit a rate/quota limit. The CLI auto-retries with backoff; try again shortly, or use `--model gemini-3.5-flash` for a lower-cost path.\n"
