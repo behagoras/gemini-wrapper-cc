@@ -22,7 +22,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/gemini-run.mjs" run [--model <m>] [--yolo] -
 Rules:
 - Pass the brief on **stdin** (`--stdin`) so long prompts and embedded file content are handled cleanly.
 - For **write-capable** runs, add `--yolo` and `--include <target dir>`. For **read-only** runs, omit `--yolo`.
-- Add `--model gemini-2.5-flash` only when the caller asked for the fast/cheap model; otherwise leave it unset so Gemini uses its default (Gemini 3 Pro) for complex work.
+- Add `--model gemini-3.5-flash` only when the caller asked for the fast/cheap model; otherwise leave it unset so Gemini uses its default (Gemini 3.1 Pro) for complex work.
 - The helper already prefers `-o json`, falls back to `-o text`, caps output length, and detects auth/quota failures. Trust it — do not add your own ret/format flags.
 
 ## Execution mode

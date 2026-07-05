@@ -1,5 +1,5 @@
 ---
-description: Hand a described task off to Gemini (Gemini 3 Pro), then review its output before anything is applied
+description: Hand a described task off to Gemini (Gemini 3.1 Pro), then review its output before anything is applied
 argument-hint: '<task description> [--dir <path>] [--read-only] [--flash]'
 disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Task, Bash(node:*), Bash(git:*), AskUserQuestion
@@ -31,7 +31,7 @@ Step 3 — Launch the `gemini-executor` subagent with the `Task` tool. Pass it a
 - the assembled brief,
 - the target directory,
 - whether this is write-capable (default) or `--read-only`,
-- model choice (`gemini-2.5-flash` if `--flash`, otherwise leave default = Gemini 3 Pro).
+- model choice (`gemini-3.5-flash` if `--flash`, otherwise leave default = Gemini 3.1 Pro).
 
 The executor is responsible for constructing and running the `gemini-run.mjs` invocation (with `--yolo` and `--include-directories <dir>` for write tasks) and returning a concise report of what Gemini did or proposed.
 

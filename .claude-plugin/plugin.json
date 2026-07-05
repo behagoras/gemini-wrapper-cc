@@ -2,7 +2,7 @@
   "name": "gemini",
   "displayName": "Gemini CLI Delegate",
   "version": "0.1.0",
-  "description": "Delegate code review, adversarial second opinions, web-grounded research, and full tasks to Google's Gemini CLI (Gemini 3 Pro) from inside Claude Code.",
+  "description": "Delegate code review, adversarial second opinions, web-grounded research, and full tasks to Google's Gemini CLI (Gemini 3.1 Pro) from inside Claude Code.",
   "author": {
     "name": "David Belomotov",
     "url": "https://github.com/behagoras"

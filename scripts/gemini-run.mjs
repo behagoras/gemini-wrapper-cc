@@ -93,7 +93,7 @@ if (sub === "check") {
   console.log(`gemini found at: ${path}`);
   console.log(`version: ${version || "unknown"}`);
   // A --version that works does not prove auth; probe cheaply.
-  const probe = spawnSync("gemini", ["-m", "gemini-2.5-flash", "-o", "text", "-p", "reply with the single word: ok"], {
+  const probe = spawnSync("gemini", ["-m", "gemini-3.1-flash-lite", "-o", "text", "-p", "reply with the single word: ok"], {
     encoding: "utf8",
     timeout: 60000,
   });
@@ -209,7 +209,7 @@ if (res.status !== 0) {
   }
   if (looksLikeQuota(combined)) {
     console.log(
-      "Gemini hit a rate/quota limit. The CLI auto-retries with backoff; try again shortly, or use `--model gemini-2.5-flash` for a lower-cost path.\n"
+      "Gemini hit a rate/quota limit. The CLI auto-retries with backoff; try again shortly, or use `--model gemini-3.5-flash` for a lower-cost path.\n"
     );
   }
 }

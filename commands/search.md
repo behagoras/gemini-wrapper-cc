@@ -15,7 +15,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/gemini-run.mjs" check
 ```
 If missing/unauthenticated, stop and point the user at `/gemini:setup`.
 
-Step 2 — Run the grounded query. Strip any `--flash` token from the question and, if present, add `--model gemini-2.5-flash` for a faster/cheaper answer:
+Step 2 — Run the grounded query. Strip any `--flash` token from the question and, if present, add `--model gemini-3.5-flash` for a faster/cheaper answer:
 ```bash
 node "${CLAUDE_PLUGIN_ROOT}/scripts/gemini-run.mjs" run --text -- "Use google_web_search to answer with current information. Cite the sources (URLs) you used. Question: <QUESTION HERE>"
 ```
