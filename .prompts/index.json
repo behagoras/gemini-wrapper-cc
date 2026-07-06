@@ -1,0 +1,8 @@
+{
+  "categories": {
+    "1xx-gemini-orchestration": {
+      "description": "Gemini wrapper plugin — orchestration, skills, and interop with orchestrate-work",
+      "next": 102
+    }
+  }
+}
