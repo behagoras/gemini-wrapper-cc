@@ -129,7 +129,7 @@ Model names change frequently — run `gemini --list-models` to see what's live.
 
 | Model | Use Case | Context |
 |-------|----------|---------|
-| `gemini-3.1-pro-preview` | Complex tasks (default) | 1M tokens |
+| `gemini-3.1-pro` | Complex tasks (default) | 1M tokens |
 | `gemini-3.5-flash` | Quick tasks, lower latency | Large |
 | `gemini-3.1-flash-lite` | Fastest, simplest tasks | Medium |
 | `gemini-3-flash-preview`, `gemini-2.5-pro`, `gemma-4-31b-it`, `gemma-4-26b-a4b-it` | Also available | — |
