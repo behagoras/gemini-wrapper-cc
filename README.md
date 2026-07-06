@@ -18,6 +18,19 @@ Claude and Gemini have different strengths. Gemini brings **live Google Search g
 
 A `gemini-executor` subagent does the actual CLI runs for delegation so large output stays out of the main conversation, and a bundled `gemini-cli` skill carries the CLI reference, prompt templates, and integration patterns.
 
+## Skills
+
+| Skill | What it does |
+|---|---|
+| `gemini-cli` | Reference material (CLI flags, prompt templates, integration patterns) backing the commands above. |
+| `run-prompt-gemini` | Runs a saved `./.prompts/**/*.md` spec (the `create-prompt`/`run-prompt` convention) through Gemini instead of a Claude sub-agent. |
+
+### `run-prompt-gemini`
+
+If you use the `run-prompt` convention (prompts saved under `./.prompts/<category>/NNN-name.md`, archived to `completed/` on success), `run-prompt-gemini` is the Gemini-executor twin of `/run-prompt`: same file resolution, same numbering/partial-name matching, same `--parallel`/`--sequential` semantics, same archive-and-commit lifecycle — but the actual work runs on Gemini via `scripts/gemini-run.mjs` instead of a Claude `general-purpose` sub-agent. It also adapts the (Claude-flavored) saved prompt for Gemini before dispatch — instructions moved to the end, inputs labeled, broad negatives turned positive — and never grants `--yolo` for secrets/env or irreversible/side-effecting work without explicit confirmation.
+
+This is the piece that lets a task-routing skill like `orchestrate-work` (free Gemini vs. metered Claude) treat "run this saved spec" as a first-class Gemini route instead of always spending a Claude sub-agent on it: saved prompt → adapted for Gemini → dispatched through this plugin's helper → verified → archived → (if the caller logs savings, e.g. `orchestrate-work`'s `~/.orchestrator/memory-work.jsonl`) logged. This plugin has no dependency on `orchestrate-work` — the skill works standalone — but its `description` frontmatter and lifecycle are written so an orchestration skill can route to it deterministically.
+
 ## Prerequisites
 
 1. **Node 18+**

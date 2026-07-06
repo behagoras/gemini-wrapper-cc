@@ -19,7 +19,7 @@ Model names change often; confirm what's live with `gemini --list-models` (or th
 
 | Role in this plugin | Model | Notes |
 |---|---|---|
-| **Heavy / default** | `gemini-3.1-pro-preview` | Complex reasoning, reviews, multi-file work. Leave `-m` unset to use the CLI default (currently this). |
+| **Heavy / default** | `gemini-3.1-pro` | Complex reasoning, reviews, multi-file work. Leave `-m` unset to use the CLI default (currently this). |
 | **Fast / cheap** (`--flash`) | `gemini-3.5-flash` | Good default for quick or lower-priority tasks. |
 | **Lite / trivial** | `gemini-3.1-flash-lite` | Cheapest; one-liners, formatting, cheap auth probes. |
 | Also available | `gemini-3-flash-preview`, `gemini-2.5-pro`, `gemma-4-31b-it`, `gemma-4-26b-a4b-it` | Use explicitly if a task calls for them. |
