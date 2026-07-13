@@ -16,7 +16,7 @@ Claude and Gemini have different strengths. Gemini brings **live Google Search g
 | `/gemini:delegate` | Hand a described task to Gemini, run it in your repo, then have Claude review Gemini's output before you apply it. |
 | `/gemini:search` | Ask a web-grounded question via Gemini's `google_web_search`, with cited sources. |
 
-A `gemini-executor` subagent does the actual CLI runs for delegation so large output stays out of the main conversation, and a bundled `gemini-cli` skill carries the CLI reference, prompt templates, and integration patterns.
+Bounded tasks run through the helper directly so they do not pay for an extra Claude subagent. The `gemini-executor` subagent is reserved for very large results that must be summarized outside the main conversation, and a bundled `gemini-cli` skill carries the CLI reference, prompt templates, and integration patterns.
 
 ## Skills
 
@@ -29,11 +29,11 @@ A `gemini-executor` subagent does the actual CLI runs for delegation so large ou
 
 If you use the `run-prompt` convention (prompts saved under `./.prompts/<category>/NNN-name.md`, archived to `completed/` on success), `run-prompt-gemini` is the Gemini-executor twin of `/run-prompt`: same file resolution, same numbering/partial-name matching, same `--parallel`/`--sequential` semantics, same archive-and-commit lifecycle — but the actual work runs on Gemini via `scripts/gemini-run.mjs` instead of a Claude `general-purpose` sub-agent. It also adapts the (Claude-flavored) saved prompt for Gemini before dispatch — instructions moved to the end, inputs labeled, broad negatives turned positive — and never grants `--yolo` for secrets/env or irreversible/side-effecting work without explicit confirmation.
 
-This is the piece that lets a task-routing skill like `orchestrate-work` (free Gemini vs. metered Claude) treat "run this saved spec" as a first-class Gemini route instead of always spending a Claude sub-agent on it: saved prompt → adapted for Gemini → dispatched through this plugin's helper → verified → archived → (if the caller logs savings, e.g. `orchestrate-work`'s `~/.orchestrator/memory-work.jsonl`) logged. This plugin has no dependency on `orchestrate-work` — the skill works standalone — but its `description` frontmatter and lifecycle are written so an orchestration skill can route to it deterministically.
+This is the piece that lets a task-routing skill like `orchestrate-work` (supported Gemini account vs. metered Claude) treat "run this saved spec" as a first-class Gemini route instead of always spending a Claude sub-agent on it: saved prompt → adapted for Gemini → dispatched through this plugin's helper → verified → archived → (if the caller logs savings, e.g. `orchestrate-work`'s `~/.orchestrator/memory-work.jsonl`) logged. This plugin has no dependency on `orchestrate-work` — the skill works standalone — but its `description` frontmatter and lifecycle are written so an orchestration skill can route to it deterministically.
 
 ## Prerequisites
 
-1. **Node 18+**
+1. **Node 20+**
 2. **Gemini CLI** installed:
    ```bash
    npm install -g @google/gemini-cli
@@ -50,6 +50,8 @@ This is the piece that lets a task-routing skill like `orchestrate-work` (free G
    ```
 
 Run `/gemini:setup` any time to confirm the CLI is ready. Every command degrades gracefully: if `gemini` isn't on PATH or auth fails, you get the exact steps to fix it instead of a cryptic error — nothing is sent to Gemini.
+
+> **Consumer migration:** Google stopped serving Gemini CLI requests for free, Google AI Pro, and Google AI Ultra users on June 18, 2026. This Gemini backend remains useful for supported Enterprise and paid API-key access. Antigravity CLI (`agy`) is not a drop-in replacement because it does not currently guarantee Gemini's JSON or `stream-json` interface; capability-driven Antigravity support is tracked in [#5](https://github.com/behagoras/gemini-wrapper-cc/issues/5).
 
 ## Install
 
@@ -91,7 +93,69 @@ Every command routes through `scripts/gemini-run.mjs`, which:
 - builds the invocation (model, `--yolo`, `--include-directories`, prompt via stdin),
 - prefers `-o json` and extracts `.response`, falling back to `-o text`,
 - caps printed output so long responses don't flood Claude's context,
-- detects auth/quota failures and prints actionable guidance.
+- detects auth/quota failures and prints actionable guidance,
+- **streams every run live to a per-run log dir** so you can watch Gemini work.
+
+## Observability: watch Gemini work
+
+Gemini used to be a black box — nothing visible until the final response. Now every `run` creates a directory under `~/.gemini-runs/` (override with `GEMINI_RUNS_DIR`):
+
+```
+~/.gemini-runs/20260705-143012123-run-a1b2c3d4e5f6/
+├── run.log        # combined stdout+stderr, streamed live as chunks arrive (uncapped)
+├── meta.json      # model, timing, exit code, status; no prompt or argv by default
+├── response.txt   # final extracted response (uncapped)
+└── stream.jsonl   # raw stream-json events (only with --stream)
+```
+
+The `run.log` path is printed **immediately at launch**, so you can follow along:
+
+```bash
+tail -f ~/.gemini-runs/<run-dir>/run.log
+```
+
+**`--stream`** switches Gemini to its `-o stream-json` output, so the log shows tool calls and assistant output the moment they happen (`[tool_use] google_web_search {...}`, then the response text as it streams). This is the recommended way to run anything you want to watch. **`--debug`** additionally passes the CLI's `-d` flag. **`--timeout <secs>`** overrides the 30-minute cap.
+
+Run storage is private even under a permissive umask: the root and run directories are forced to `0700`, and artifacts to `0600`. Names use millisecond time plus a random suffix and never derive from prompt text. Prompt previews and process arguments are not persisted. `--diagnostics` is an explicit opt-in that records only redacted prompt length and arguments. Because `run.log`, `response.txt`, and opt-in `stream.jsonl` contain model/tool output, treat the run root as sensitive.
+
+Retention is bounded to the newest 100 recognized runs and 30 days by default. Override with positive integer `GEMINI_RUN_MAX_ENTRIES` and `GEMINI_RUN_MAX_AGE_DAYS` values. Cleanup only considers runner-owned directory names inside `GEMINI_RUNS_DIR`; unrelated entries are untouched.
+
+> Honest caveat: in plain `-o text`/`-o json` modes the Gemini CLI buffers most of its stdout until the end when not attached to a TTY, so `run.log` mainly grows at completion; stderr (and `--debug` output) still flows live. For true live output, use `--stream`.
+
+List recent runs without opening files:
+
+```bash
+node scripts/gemini-run.mjs logs --last 10
+# status, duration, model, exit code, and log path per run
+```
+
+### Statusline: zero-token live indicator
+
+`scripts/gemini-statusline.mjs` shows the active Gemini run in Claude Code's statusline — elapsed time plus the last tool call (`✦ gemini ▶ 34s · [tool_use] google_web_search {...}`), then `✔/✖` for a minute after it finishes. It reads `meta.json` + the log tail; no model involved, zero tokens. Statusline is a user-level setting, so add to `~/.claude/settings.json` (absolute path — `${CLAUDE_PLUGIN_ROOT}` doesn't resolve there):
+
+```json
+"statusLine": { "type": "command", "command": "node /path/to/gemini-plugin-cc/scripts/gemini-statusline.mjs" }
+```
+
+### Direct vs executor: pick the cheap path
+
+Two ways to run a delegation:
+
+- **Direct (default):** Claude launches `gemini-run.mjs` in a background Bash and hands you the `tail -f` line. Costs zero extra Anthropic tokens.
+- **`gemini-executor` subagent:** a Sonnet wrapper that launches Gemini and summarizes its output. Launching it costs ~15–30k input tokens, so it's reserved for runs whose output is huge and must be summarized away from the main context.
+
+The bundled skill and commands teach Claude to default to the direct path.
+
+## Updating an installed plugin
+
+Merging a PR does **not** update machines that already have the plugin installed — Claude Code runs the copy in its plugin cache. After a release:
+
+```
+/plugin marketplace update gemini-plugin-cc
+/plugin update gemini@gemini-plugin-cc
+```
+
+(or uninstall/reinstall), then restart Claude Code if prompted. Verify with `/gemini:setup` or by checking that `gemini-run.mjs logs` exists in the installed copy.
 
 ## Credits & license
 

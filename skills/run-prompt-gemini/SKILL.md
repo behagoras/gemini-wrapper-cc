@@ -1,6 +1,6 @@
 ---
 name: run-prompt-gemini
-description: Run one or more saved ./.prompts/ specs (the create-prompt / run-prompt convention) through Google's Gemini CLI instead of a Claude sub-agent — the free, unlimited executor route. Use when a user wants to run, execute, or delegate a saved prompt file to Gemini, or when an orchestration flow (e.g. orchestrate-work) needs a verifiable "run this saved spec on Gemini" primitive instead of spending metered Claude tokens. Mirrors /run-prompt's argument surface and lifecycle (resolve → adapt → dispatch → archive → commit) but swaps the general-purpose sub-agent for scripts/gemini-run.mjs.
+description: Run one or more saved ./.prompts/ specs (the create-prompt / run-prompt convention) through a supported Gemini CLI account instead of a Claude sub-agent. Use when a user wants to run, execute, or delegate a saved prompt file to Gemini, or when an orchestration flow (e.g. orchestrate-work) needs a verifiable "run this saved spec on Gemini" primitive instead of spending metered Claude tokens. Mirrors /run-prompt's argument surface and lifecycle (resolve → adapt → dispatch → archive → commit) but swaps the general-purpose sub-agent for scripts/gemini-run.mjs.
 argument-hint: '<prompt-number(s)-or-name> [--parallel|--sequential] [--flash] [--read-only]'
 allowed-tools:
   - Read
@@ -12,7 +12,7 @@ allowed-tools:
 
 # run-prompt-gemini
 
-The Gemini analog of the `run-prompt` skill: same `./.prompts/` convention, same lifecycle, but the actual work runs on Google's Gemini CLI (free/unlimited on most setups) through this plugin's `scripts/gemini-run.mjs`, instead of a Claude `general-purpose` sub-agent. Use it to keep saved specs off the Claude meter when Gemini can do the job — the missing primitive `/orchestrate-work` needs to route a saved prompt to Gemini and prove it happened.
+The Gemini analog of the `run-prompt` skill: same `./.prompts/` convention, same lifecycle, but the actual work runs on a supported Google Gemini CLI account through this plugin's `scripts/gemini-run.mjs`, instead of a Claude `general-purpose` sub-agent. Use it to keep saved specs off the Claude meter when Gemini can do the job — the missing primitive `/orchestrate-work` needs to route a saved prompt to Gemini and prove it happened. Consumer Gemini CLI access ended on June 18, 2026; Antigravity support is tracked in https://github.com/behagoras/gemini-wrapper-cc/issues/5.
 
 ## Step 0 — Confirm Gemini is available
 

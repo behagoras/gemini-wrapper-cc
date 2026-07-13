@@ -16,9 +16,9 @@ Interpret the exit code and output:
 
 - **Exit 0, "auth: OK"** — Gemini is installed and authenticated. Tell the user they're ready and list the available commands: `/gemini:review`, `/gemini:adversarial`, `/gemini:delegate`, `/gemini:search`.
 - **Exit 3 (not installed)** — the CLI is missing. If `npm` is available, use `AskUserQuestion` exactly once with two options (install option first, suffixed `(Recommended)`):
-  - `Install Gemini CLI (Recommended)`
+  - `Install Gemini CLI for Enterprise/API-key access (Recommended)`
   - `Skip for now`
-  If the user chooses install, run `npm install -g @google/gemini-cli`, then re-run the check command above. Remind them that authentication (`gemini` run once interactively, or `export GEMINI_API_KEY=...`) is a manual one-time step Claude cannot do for them.
+  Before asking, explain that Google stopped serving Gemini CLI requests for free, Google AI Pro, and Google AI Ultra users on June 18, 2026. Antigravity CLI is not supported by this wrapper yet; link https://github.com/behagoras/gemini-wrapper-cc/issues/5. If the user chooses install, run `npm install -g @google/gemini-cli`, then re-run the check command above. Remind them that supported Enterprise sign-in (`gemini` once interactively) or a paid `GEMINI_API_KEY` is a manual one-time step Claude cannot do for them.
 - **Exit 4 (installed but not authenticated)** — do NOT try to install. Tell the user to run `gemini` once in their terminal and complete the sign-in, or to set `GEMINI_API_KEY`, then re-run `/gemini:setup`.
 
 Present the final check output to the user. Do not fabricate a success state — only report what the check command actually returned.
