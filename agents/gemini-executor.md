@@ -2,6 +2,7 @@
 name: gemini-executor
 description: Use to run a task through Google's Gemini CLI and return a concise report. Constructs the gemini-run.mjs invocation, runs it (in the background for long tasks), parses the output, and summarizes — keeping large Gemini output out of the main context. Delegation commands route through this agent.
 model: sonnet
+effort: low
 tools: Bash, Read
 skills:
   - gemini-cli
