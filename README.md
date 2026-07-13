@@ -16,7 +16,7 @@ Claude and Gemini have different strengths. Gemini brings **live Google Search g
 | `/gemini:delegate` | Hand a described task to Gemini, run it in your repo, then have Claude review Gemini's output before you apply it. |
 | `/gemini:search` | Ask a web-grounded question via Gemini's `google_web_search`, with cited sources. |
 
-A `gemini-executor` subagent does the actual CLI runs for delegation so large output stays out of the main conversation, and a bundled `gemini-cli` skill carries the CLI reference, prompt templates, and integration patterns.
+Bounded tasks run through the helper directly so they do not pay for an extra Claude subagent. The `gemini-executor` subagent is reserved for very large results that must be summarized outside the main conversation, and a bundled `gemini-cli` skill carries the CLI reference, prompt templates, and integration patterns.
 
 ## Skills
 
@@ -29,11 +29,11 @@ A `gemini-executor` subagent does the actual CLI runs for delegation so large ou
 
 If you use the `run-prompt` convention (prompts saved under `./.prompts/<category>/NNN-name.md`, archived to `completed/` on success), `run-prompt-gemini` is the Gemini-executor twin of `/run-prompt`: same file resolution, same numbering/partial-name matching, same `--parallel`/`--sequential` semantics, same archive-and-commit lifecycle — but the actual work runs on Gemini via `scripts/gemini-run.mjs` instead of a Claude `general-purpose` sub-agent. It also adapts the (Claude-flavored) saved prompt for Gemini before dispatch — instructions moved to the end, inputs labeled, broad negatives turned positive — and never grants `--yolo` for secrets/env or irreversible/side-effecting work without explicit confirmation.
 
-This is the piece that lets a task-routing skill like `orchestrate-work` (free Gemini vs. metered Claude) treat "run this saved spec" as a first-class Gemini route instead of always spending a Claude sub-agent on it: saved prompt → adapted for Gemini → dispatched through this plugin's helper → verified → archived → (if the caller logs savings, e.g. `orchestrate-work`'s `~/.orchestrator/memory-work.jsonl`) logged. This plugin has no dependency on `orchestrate-work` — the skill works standalone — but its `description` frontmatter and lifecycle are written so an orchestration skill can route to it deterministically.
+This is the piece that lets a task-routing skill like `orchestrate-work` (supported Gemini account vs. metered Claude) treat "run this saved spec" as a first-class Gemini route instead of always spending a Claude sub-agent on it: saved prompt → adapted for Gemini → dispatched through this plugin's helper → verified → archived → (if the caller logs savings, e.g. `orchestrate-work`'s `~/.orchestrator/memory-work.jsonl`) logged. This plugin has no dependency on `orchestrate-work` — the skill works standalone — but its `description` frontmatter and lifecycle are written so an orchestration skill can route to it deterministically.
 
 ## Prerequisites
 
-1. **Node 18+**
+1. **Node 20+**
 2. **Gemini CLI** installed:
    ```bash
    npm install -g @google/gemini-cli
@@ -50,6 +50,8 @@ This is the piece that lets a task-routing skill like `orchestrate-work` (free G
    ```
 
 Run `/gemini:setup` any time to confirm the CLI is ready. Every command degrades gracefully: if `gemini` isn't on PATH or auth fails, you get the exact steps to fix it instead of a cryptic error — nothing is sent to Gemini.
+
+> **Consumer migration:** Google stopped serving Gemini CLI requests for free, Google AI Pro, and Google AI Ultra users on June 18, 2026. This Gemini backend remains useful for supported Enterprise and paid API-key access. Antigravity CLI (`agy`) is not a drop-in replacement because it does not currently guarantee Gemini's JSON or `stream-json` interface; capability-driven Antigravity support is tracked in [#5](https://github.com/behagoras/gemini-wrapper-cc/issues/5).
 
 ## Install
 

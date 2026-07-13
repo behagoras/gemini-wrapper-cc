@@ -104,13 +104,13 @@ Is the task complex (architecture, multi-file, deep reasoning, security review)?
          └── Trivial (formatting, one-liners) → -m gemini-3.1-flash-lite
 ```
 
-## Rate limits
+## Availability and rate limits
 
-Free tier ≈ 60 req/min, 1000 req/day. The CLI auto-retries with backoff ("quota will reset after Xs"). Mitigations: use Flash for lower-priority work (separate quota), batch related asks into one prompt, and run long tasks in the background. The helper detects quota messages and tells you to retry or switch to Flash.
+Google stopped serving Gemini CLI requests for free, Google AI Pro, and Google AI Ultra users on June 18, 2026. The backend remains available for supported Enterprise and paid API-key access; quotas depend on that account or API plan, so the old consumer free-tier figures no longer apply. The CLI auto-retries with backoff ("quota will reset after Xs"). Mitigations: use Flash for lower-priority work, batch related asks into one prompt, and run long tasks in the background. The helper detects quota messages and tells you to retry or switch to Flash. Antigravity CLI support is tracked in https://github.com/behagoras/gemini-wrapper-cc/issues/5 and must be capability-driven because `agy` is not guaranteed to expose Gemini's JSON or `stream-json` contract.
 
 ## Graceful degradation
 
-If `gemini` is not on PATH or auth fails, the helper prints exact install/auth steps and exits non-zero (3 = not installed, 4 = not authenticated, 5 = untrusted folder). **Folder trust:** in a directory Gemini hasn't seen before (fresh clones, new worktrees), the CLI's folder-trust check blocks non-interactive runs — add `--trust` to the helper invocation (passes `--skip-trust`), or set `GEMINI_CLI_TRUST_WORKSPACE=true` in the environment. Never let a raw failure leak — route through the helper, or run `/gemini:setup`. Auth (`gemini` run once interactively, or `GEMINI_API_KEY`) is a one-time manual step the user must do themselves.
+If `gemini` is not on PATH or auth fails, the helper prints exact install/auth steps plus the consumer-migration notice and exits non-zero (3 = not installed, 4 = not authenticated, 5 = untrusted folder). **Folder trust:** in a directory Gemini hasn't seen before (fresh clones, new worktrees), the CLI's folder-trust check blocks non-interactive runs — add `--trust` to the helper invocation (passes `--skip-trust`), or set `GEMINI_CLI_TRUST_WORKSPACE=true` in the environment. Never let a raw failure leak — route through the helper, or run `/gemini:setup`. Supported Enterprise sign-in (`gemini` once interactively) or a paid `GEMINI_API_KEY` is a one-time manual step the user must do themselves.
 
 ## Output handling
 

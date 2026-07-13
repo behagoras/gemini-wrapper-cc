@@ -124,7 +124,7 @@ const UNAVAILABLE_MSG = `Gemini CLI is not available on this machine.
 
 To use this plugin, install and authenticate the Gemini CLI:
 
-  1. Install (Node 18+ required):
+  1. Install (Node 20+ required):
        npm install -g @google/gemini-cli
 
   2. Authenticate — run once, interactively, and follow the prompt:
@@ -133,6 +133,12 @@ To use this plugin, install and authenticate the Gemini CLI:
 
   3. Verify:
        gemini --version
+
+Consumer access note: Google stopped serving Gemini CLI requests for free,
+Google AI Pro, and Google AI Ultra users on June 18, 2026. This wrapper does
+not yet treat Antigravity CLI (agy) as a drop-in backend because its structured
+streaming interface differs. Migration work is tracked at:
+  https://github.com/behagoras/gemini-wrapper-cc/issues/5
 
 Then re-run this command. Nothing was sent to Gemini.`;
 
