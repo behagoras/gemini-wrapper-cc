@@ -117,16 +117,19 @@ test("enforces private permissions independently of umask and omits prompt diagn
 
 test("records only explicitly requested redacted diagnostics", async () => {
   const fx = await fixture();
-  const secret = "diagnostic secret";
-  const result = await execute(runner, ["run", "--diagnostics", "--model", "sensitive-model", "--", secret], fx.env);
+  const promptWords = ["diagnostic", "--fake-secret=hunter2"];
+  const prompt = promptWords.join(" ");
+  const result = await execute(runner, ["run", "--diagnostics", "--model", "sensitive-model", "--", ...promptWords], fx.env);
   assert.equal(result.code, 0);
   const [name] = await runDirs(fx.runs);
   const metaText = await readFile(join(fx.runs, name, "meta.json"), "utf8");
-  assert.ok(!metaText.includes(secret));
+  assert.ok(!metaText.includes("hunter2"));
   const meta = JSON.parse(metaText);
-  assert.equal(meta.diagnostics.prompt, `<redacted:${secret.length} chars>`);
+  assert.equal(meta.diagnostics.prompt, `<redacted:${prompt.length} chars>`);
   assert.ok(!JSON.stringify(meta.diagnostics).includes("sensitive-model"));
-  assert.ok(meta.diagnostics.argv.includes("<redacted>"));
+  const separator = meta.diagnostics.argv.indexOf("--");
+  assert.ok(separator >= 0);
+  assert.deepEqual(meta.diagnostics.argv.slice(separator + 1), ["<redacted>", "<redacted>"]);
 });
 
 test("retention is bounded to recognized run directories inside the configured root", async () => {
@@ -168,4 +171,18 @@ test("statusline reports a fresh successful run without invoking Gemini", async 
   const status = await execute(statusline, [], fx.env);
   assert.equal(status.code, 0);
   assert.match(status.stdout, /gemini ✔/);
+});
+
+test("statusline honors a running job's custom timeout", async () => {
+  const fx = await fixture();
+  const runDir = join(fx.runs, "20260712-120000000-run-aaaaaaaaaaaa");
+  await mkdir(runDir, { recursive: true });
+  await writeFile(join(runDir, "meta.json"), JSON.stringify({
+    status: "running",
+    startedAt: new Date(Date.now() - 36 * 60 * 1000).toISOString(),
+    timeoutSecs: 2 * 60 * 60,
+  }));
+  const status = await execute(statusline, [], fx.env);
+  assert.equal(status.code, 0);
+  assert.match(status.stdout, /gemini ▶ 36m/);
 });

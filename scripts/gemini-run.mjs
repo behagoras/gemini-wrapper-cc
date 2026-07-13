@@ -145,7 +145,7 @@ function looksLikeQuota(text) {
   return /(quota|rate limit|429|RESOURCE_EXHAUSTED|will reset after)/i.test(text || "");
 }
 function looksLikeTrustError(text) {
-  return /(folder trust|not trusted|untrusted (folder|workspace|directory)|trust dialog|trusted folders)/i.test(text || "");
+  return /(folder trust|not trusted|not running in a trusted (folder|workspace|directory)|untrusted (folder|workspace|directory)|trust dialog|trusted folders)/i.test(text || "");
 }
 
 const TRUST_MSG = `Gemini CLI does not trust this directory (folder trust check).
@@ -393,13 +393,15 @@ const meta = {
 };
 
 if (opts.diagnostics) {
+  const promptSeparator = RAW.indexOf("--");
   meta.diagnostics = {
     prompt: `<redacted:${prompt.length} chars>`,
     argv: RAW.slice(0, 40).map((arg, index, args) => {
+      // Everything after `--` is prompt content, including words that look like flags.
+      if (promptSeparator !== -1 && index > promptSeparator) return "<redacted>";
       if (index > 0 && ["--model", "-m", "--include", "--max-chars", "--timeout"].includes(args[index - 1])) {
         return "<redacted>";
       }
-      if (arg === prompt || (!arg.startsWith("-") && args.includes("--"))) return "<redacted>";
       return arg;
     }),
   };

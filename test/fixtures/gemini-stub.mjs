@@ -15,8 +15,8 @@ if (mode === "timeout") {
   process.stderr.write("401 not authenticated\n");
   process.exit(1);
 } else if (mode === "trust") {
-  process.stderr.write("untrusted workspace: folder trust required\n");
-  process.exit(1);
+  process.stderr.write("Gemini CLI is not running in a trusted directory. To proceed, use --skip-trust.\n");
+  process.exit(55);
 } else if (mode === "fallback" && format === "json") {
   process.stdout.write("not-json\n");
 } else if (mode === "stream") {

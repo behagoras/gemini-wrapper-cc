@@ -21,7 +21,8 @@ try {
 } catch {}
 
 const RECENT_DONE_SECS = 60; // show finished/failed runs for this long
-const STALE_RUN_SECS = 35 * 60; // ignore "running" metas older than this (crashed runs)
+const DEFAULT_TIMEOUT_SECS = 30 * 60;
+const STALE_GRACE_SECS = 5 * 60;
 
 function lastLogLine(dir) {
   // Read the last 4 KB of run.log and return the most recent interesting line.
@@ -69,7 +70,11 @@ try {
     const started = Date.parse(meta.startedAt || 0);
     if (meta.status === "running") {
       const elapsed = Math.round((now - started) / 1000);
-      if (elapsed > STALE_RUN_SECS) continue; // crashed/stale
+      const configuredTimeout = Number(meta.timeoutSecs);
+      const timeoutSecs = Number.isFinite(configuredTimeout) && configuredTimeout > 0
+        ? configuredTimeout
+        : DEFAULT_TIMEOUT_SECS;
+      if (!Number.isFinite(elapsed) || elapsed > timeoutSecs + STALE_GRACE_SECS) continue; // crashed/stale
       const tail = lastLogLine(dir).slice(0, 70);
       process.stdout.write(`✦ gemini ▶ ${fmt(elapsed)}${tail ? ` · ${tail}` : ""}`);
       process.exit(0);
