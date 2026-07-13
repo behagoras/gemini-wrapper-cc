@@ -1,0 +1,12 @@
+{
+  "name": "gemini-wrapper-cc",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "typecheck": "node --check scripts/gemini-run.mjs && node --check scripts/gemini-statusline.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

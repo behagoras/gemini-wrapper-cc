@@ -99,9 +99,9 @@ Every command routes through `scripts/gemini-run.mjs`, which:
 Gemini used to be a black box — nothing visible until the final response. Now every `run` creates a directory under `~/.gemini-runs/` (override with `GEMINI_RUNS_DIR`):
 
 ```
-~/.gemini-runs/20260705-143012-count-slowly-from-1-to-5/
+~/.gemini-runs/20260705-143012123-run-a1b2c3d4e5f6/
 ├── run.log        # combined stdout+stderr, streamed live as chunks arrive (uncapped)
-├── meta.json      # args, model, start/end time, duration, exit code, status
+├── meta.json      # model, timing, exit code, status; no prompt or argv by default
 ├── response.txt   # final extracted response (uncapped)
 └── stream.jsonl   # raw stream-json events (only with --stream)
 ```
@@ -113,6 +113,10 @@ tail -f ~/.gemini-runs/<run-dir>/run.log
 ```
 
 **`--stream`** switches Gemini to its `-o stream-json` output, so the log shows tool calls and assistant output the moment they happen (`[tool_use] google_web_search {...}`, then the response text as it streams). This is the recommended way to run anything you want to watch. **`--debug`** additionally passes the CLI's `-d` flag. **`--timeout <secs>`** overrides the 30-minute cap.
+
+Run storage is private even under a permissive umask: the root and run directories are forced to `0700`, and artifacts to `0600`. Names use millisecond time plus a random suffix and never derive from prompt text. Prompt previews and process arguments are not persisted. `--diagnostics` is an explicit opt-in that records only redacted prompt length and arguments. Because `run.log`, `response.txt`, and opt-in `stream.jsonl` contain model/tool output, treat the run root as sensitive.
+
+Retention is bounded to the newest 100 recognized runs and 30 days by default. Override with positive integer `GEMINI_RUN_MAX_ENTRIES` and `GEMINI_RUN_MAX_AGE_DAYS` values. Cleanup only considers runner-owned directory names inside `GEMINI_RUNS_DIR`; unrelated entries are untouched.
 
 > Honest caveat: in plain `-o text`/`-o json` modes the Gemini CLI buffers most of its stdout until the end when not attached to a TTY, so `run.log` mainly grows at completion; stderr (and `--debug` output) still flows live. For true live output, use `--stream`.
 

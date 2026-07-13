@@ -16,7 +16,7 @@
 // Usage:
 //   node gemini-run.mjs check
 //   node gemini-run.mjs run [--model <m>] [--yolo] [--trust] [--text|--json]
-//        [--stream] [--quiet] [--debug] [--include <dir> ...] [--max-chars <n>]
+//        [--stream] [--quiet] [--debug] [--diagnostics] [--include <dir> ...] [--max-chars <n>]
 //        [--timeout <secs>] [--stdin] -- <prompt words...>
 //
 // In --stream mode, rendered progress (tool calls + assistant text) is ALSO
@@ -27,16 +27,28 @@
 // The prompt may be passed after `--` OR piped on stdin with `--stdin`.
 //
 // Per-run artifacts (base dir: $GEMINI_RUNS_DIR, default ~/.gemini-runs):
-//   <base>/<timestamp>-<slug>/run.log       combined live stream (stdout+stderr), uncapped
-//   <base>/<timestamp>-<slug>/stream.jsonl  raw stream-json events (only with --stream)
-//   <base>/<timestamp>-<slug>/meta.json     args, model, timing, exit code, status
-//   <base>/<timestamp>-<slug>/response.txt  final extracted response, uncapped
+//   <base>/<timestamp>-run-<random>/run.log       combined live stream (stdout+stderr), uncapped
+//   <base>/<timestamp>-run-<random>/stream.jsonl  raw stream-json events (only with --stream)
+//   <base>/<timestamp>-run-<random>/meta.json     model, timing, exit code, status
+//   <base>/<timestamp>-run-<random>/response.txt  final extracted response, uncapped
 //
 // The path of run.log is printed to stdout IMMEDIATELY at launch (before Gemini
 // finishes) so the caller can hand it to the user for `tail -f`.
 
 import { spawn, spawnSync } from "node:child_process";
-import { readFileSync, mkdirSync, createWriteStream, writeFileSync, readdirSync, existsSync } from "node:fs";
+import {
+  chmodSync,
+  createWriteStream,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -45,6 +57,9 @@ const sub = RAW[0];
 
 const TIMEOUT_DEFAULT_SECS = 30 * 60; // 30 min
 const MEM_CAP = 32 * 1024 * 1024; // max child output kept in memory; log file is never capped
+const RETENTION_MAX_RUNS = 100;
+const RETENTION_MAX_AGE_DAYS = 30;
+const RUN_DIR_PATTERN = /^\d{8}-\d{9}-[a-z0-9-]+-[a-f0-9]{12}$/;
 
 // ---------- tiny arg parser ----------
 function parse(args) {
@@ -59,15 +74,21 @@ function parse(args) {
     stream: false,
     quiet: false,
     debug: false,
+    diagnostics: false,
     timeoutSecs: TIMEOUT_DEFAULT_SECS,
     prompt: "",
   };
   const dashdash = args.indexOf("--");
   const flagArgs = dashdash === -1 ? args : args.slice(0, dashdash);
   const promptWords = dashdash === -1 ? [] : args.slice(dashdash + 1);
+  const valueFor = (name, index) => {
+    const value = flagArgs[index + 1];
+    if (!value || value.startsWith("--")) throw new Error(`${name} requires a value`);
+    return value;
+  };
   for (let i = 0; i < flagArgs.length; i++) {
     const a = flagArgs[i];
-    if (a === "--model" || a === "-m") opts.model = flagArgs[++i];
+    if (a === "--model" || a === "-m") opts.model = valueFor(a, i++);
     else if (a === "--yolo" || a === "-y") opts.yolo = true;
     else if (a === "--trust") opts.trust = true;
     else if (a === "--json") opts.format = "json";
@@ -75,10 +96,20 @@ function parse(args) {
     else if (a === "--stream" || a === "--verbose") opts.stream = true;
     else if (a === "--quiet") opts.quiet = true;
     else if (a === "--debug") opts.debug = true;
-    else if (a === "--include") opts.include.push(flagArgs[++i]);
-    else if (a === "--max-chars") opts.maxChars = parseInt(flagArgs[++i], 10) || opts.maxChars;
-    else if (a === "--timeout") opts.timeoutSecs = parseInt(flagArgs[++i], 10) || opts.timeoutSecs;
+    else if (a === "--diagnostics") opts.diagnostics = true;
+    else if (a === "--include") opts.include.push(valueFor(a, i++));
+    else if (a === "--max-chars") {
+      const value = Number.parseInt(valueFor(a, i++), 10);
+      if (!Number.isSafeInteger(value) || value < 1) throw new Error("--max-chars must be a positive integer");
+      opts.maxChars = value;
+    }
+    else if (a === "--timeout") {
+      const value = Number.parseInt(valueFor(a, i++), 10);
+      if (!Number.isSafeInteger(value) || value < 1) throw new Error("--timeout must be a positive integer");
+      opts.timeoutSecs = value;
+    }
     else if (a === "--stdin") opts.stdin = true;
+    else throw new Error(`Unknown option: ${a}`);
   }
   opts.prompt = promptWords.join(" ").trim();
   return opts;
@@ -130,26 +161,77 @@ function runsBaseDir() {
   return process.env.GEMINI_RUNS_DIR || join(homedir(), ".gemini-runs");
 }
 
-function slugify(text) {
-  return (text || "run")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40) || "run";
-}
-
 function timestamp() {
   const d = new Date();
   const p = (n, w = 2) => String(n).padStart(w, "0");
-  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}${p(d.getMilliseconds(), 3)}`;
+}
+
+function positiveIntEnv(name, fallback) {
+  const value = Number.parseInt(process.env[name] || "", 10);
+  return Number.isSafeInteger(value) && value > 0 ? value : fallback;
+}
+
+function enforcePrivateDir(dir) {
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  chmodSync(dir, 0o700);
+}
+
+function atomicPrivateWrite(path, data) {
+  const temp = `${path}.tmp-${process.pid}-${randomUUID()}`;
+  try {
+    writeFileSync(temp, data, { mode: 0o600 });
+    chmodSync(temp, 0o600);
+    renameSync(temp, path);
+    chmodSync(path, 0o600);
+  } finally {
+    try { rmSync(temp, { force: true }); } catch {}
+  }
+}
+
+function cleanupRuns(base, keepDir = null) {
+  const maxRuns = positiveIntEnv("GEMINI_RUN_MAX_ENTRIES", RETENTION_MAX_RUNS);
+  const maxAgeDays = positiveIntEnv("GEMINI_RUN_MAX_AGE_DAYS", RETENTION_MAX_AGE_DAYS);
+  const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+  let entries;
+  try {
+    entries = readdirSync(base, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && RUN_DIR_PATTERN.test(entry.name))
+      .map((entry) => {
+        const path = join(base, entry.name);
+        return { path, name: entry.name, mtimeMs: lstatSync(path).mtimeMs };
+      })
+      .sort((a, b) => b.name.localeCompare(a.name));
+  } catch {
+    return;
+  }
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    if (entry.path === keepDir) continue;
+    let active = false;
+    try {
+      const entryMeta = JSON.parse(readFileSync(join(entry.path, "meta.json"), "utf8"));
+      const startedAt = Date.parse(entryMeta.startedAt || 0);
+      const staleAfterMs = (Number(entryMeta.timeoutSecs) || TIMEOUT_DEFAULT_SECS) * 1000 + 60_000;
+      active = entryMeta.status === "running" && Date.now() - startedAt < staleAfterMs;
+    } catch {}
+    if (active) continue;
+    if (i >= maxRuns || entry.mtimeMs < cutoff) {
+      try { rmSync(entry.path, { recursive: true, force: true }); } catch {}
+    }
+  }
 }
 
 // Create the per-run dir. Never let logging problems break the run: on failure
 // return null and the runner degrades to the old (log-less) behaviour.
 function createRunDir(slug) {
   try {
-    const dir = join(runsBaseDir(), `${timestamp()}-${slug}`);
-    mkdirSync(dir, { recursive: true });
+    const base = runsBaseDir();
+    enforcePrivateDir(base);
+    const dir = join(base, `${timestamp()}-${slug}-${randomUUID().replaceAll("-", "").slice(0, 12)}`);
+    mkdirSync(dir, { mode: 0o700 });
+    chmodSync(dir, 0o700);
+    cleanupRuns(base, dir);
     return dir;
   } catch (e) {
     console.error(`[gemini-run] warning: cannot create log dir under ${runsBaseDir()} (${e.message}); running without logs`);
@@ -231,7 +313,13 @@ if (sub !== "run") {
   process.exit(2);
 }
 
-const opts = parse(RAW.slice(1));
+let opts;
+try {
+  opts = parse(RAW.slice(1));
+} catch (error) {
+  console.error(error.message);
+  process.exit(2);
+}
 
 // Resolve prompt source
 let prompt = opts.prompt;
@@ -253,13 +341,20 @@ if (!geminiPath()) {
 }
 
 // ---------- set up per-run observability ----------
-const runDir = createRunDir(slugify(prompt));
+// Run names never derive from prompt content: directory listings must not leak it.
+const runDir = createRunDir("run");
 let logStream = null;
 let eventStream = null;
 if (runDir) {
   try {
-    logStream = createWriteStream(join(runDir, "run.log"), { flags: "a" });
-    if (opts.stream) eventStream = createWriteStream(join(runDir, "stream.jsonl"), { flags: "a" });
+    const logPath = join(runDir, "run.log");
+    atomicPrivateWrite(logPath, "");
+    logStream = createWriteStream(logPath, { flags: "a", mode: 0o600 });
+    if (opts.stream) {
+      const eventPath = join(runDir, "stream.jsonl");
+      atomicPrivateWrite(eventPath, "");
+      eventStream = createWriteStream(eventPath, { flags: "a", mode: 0o600 });
+    }
   } catch (e) {
     console.error(`[gemini-run] warning: cannot open log files (${e.message}); running without logs`);
     logStream = null;
@@ -291,18 +386,29 @@ const meta = {
   debug: opts.debug,
   yolo: opts.yolo,
   trust: opts.trust,
-  include: opts.include,
+  includeCount: opts.include.length,
   format: opts.format,
   timeoutSecs: opts.timeoutSecs,
   promptChars: prompt.length,
-  promptPreview: prompt.slice(0, 200),
-  argv: RAW.slice(0, 40),
 };
+
+if (opts.diagnostics) {
+  meta.diagnostics = {
+    prompt: `<redacted:${prompt.length} chars>`,
+    argv: RAW.slice(0, 40).map((arg, index, args) => {
+      if (index > 0 && ["--model", "-m", "--include", "--max-chars", "--timeout"].includes(args[index - 1])) {
+        return "<redacted>";
+      }
+      if (arg === prompt || (!arg.startsWith("-") && args.includes("--"))) return "<redacted>";
+      return arg;
+    }),
+  };
+}
 
 function writeMeta() {
   if (!runDir) return;
   try {
-    writeFileSync(join(runDir, "meta.json"), JSON.stringify(meta, null, 2));
+    atomicPrivateWrite(join(runDir, "meta.json"), JSON.stringify(meta, null, 2));
   } catch {}
 }
 writeMeta();
@@ -315,7 +421,7 @@ function finalize(status, exitCode, responseText) {
   writeMeta();
   if (runDir && responseText != null) {
     try {
-      writeFileSync(join(runDir, "response.txt"), responseText);
+      atomicPrivateWrite(join(runDir, "response.txt"), responseText);
     } catch {}
   }
   log(`\n[gemini-run] finished: status=${status} exit=${exitCode} duration=${meta.durationMs}ms`);

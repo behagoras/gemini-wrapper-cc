@@ -48,11 +48,13 @@ Raw `gemini` invocations (below) are documented so you understand what the helpe
 Every `run` writes a per-run directory under `$GEMINI_RUNS_DIR` (default `~/.gemini-runs/`):
 
 - `run.log` — combined stdout+stderr, streamed **live** as chunks arrive (uncapped)
-- `meta.json` — args, model, start/end time, duration, exit code, status
+- `meta.json` — model, start/end time, duration, exit code, and status; no prompt or argv by default
 - `response.txt` — the final extracted response (uncapped)
 - `stream.jsonl` — raw `stream-json` events (only with `--stream`)
 
 The helper prints the `run.log` path on stdout **immediately at launch**, before Gemini finishes. Always relay that path to the user so they can `tail -f` it. Add `--stream` for real runs the user wants to watch: it switches Gemini to `-o stream-json` (available in CLI v0.46+; confirmed live on 0.46.0 and 0.49.0), so tool calls (`[tool_use] google_web_search {...}`) and assistant output land in the log the moment they happen. `--debug` additionally passes the CLI's `-d` flag for its internal debug output. `--timeout <secs>` overrides the 30-minute cap.
+
+The run root and per-run directories are forced to `0700`; artifact files are `0600`, independent of umask. Run IDs combine millisecond time with a random suffix and do not contain prompt text. `--diagnostics` is opt-in and records only redacted prompt length/arguments. The runner retains at most 100 recognized runs for 30 days by default (`GEMINI_RUN_MAX_ENTRIES`, `GEMINI_RUN_MAX_AGE_DAYS`). Treat output logs as sensitive because model and tool output may reproduce input content.
 
 ## Direct path vs the gemini-executor agent
 
